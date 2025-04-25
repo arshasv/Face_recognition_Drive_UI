@@ -1,0 +1,63 @@
+/* General Styles */
+body {
+    font-family: "Arial", sans-serif;
+    background-color: #f4f6f8;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+  
+  h2 {
+    color: #333;
+  }
+  
+  /* Container Box */
+  .container {
+    max-width: 800px;
+    margin: auto;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Input Box */
+  .input-container {
+    margin-bottom: 20px;
+  }
+  
+  /* Image Grid */
+  .image-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  /* Image Card */
+  .image-card {
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .image-card:hover {
+    transform: scale(1.05);
+    border: 2px solid #3f51b5;
+  }
+  
+  /* Selected Image */
+  .selected-image {
+    margin-top: 20px;
+    padding: 10px;
+  }
+  
+  .selected-image img {
+    width: 250px;
+    border-radius: 15px;
+    border: 2px solid #3f51b5;
+  }
+  
+  /* Button Styling */
+  .button-container {
+    margin-top: 15px;
+  }
+  
