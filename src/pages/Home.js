@@ -4,11 +4,13 @@ import {
   CardContent,
   Button,
   Typography,
-  Grid,
   Paper,
   TextField,
   CircularProgress,
+  ImageList, ImageListItem
 } from "@mui/material";
+import CloseIcon from '@mui/icons-material/Close';
+
 
 const Home = () => {
   const [driveLink, setDriveLink] = useState("");
@@ -81,32 +83,47 @@ const Home = () => {
   };
 
   const handleScan = async () => {
-    if (!referenceImageURL) {
-      alert("Please upload a reference image.");
+    if (!referenceImageURL || !driveLink) {
+      alert("Please upload a reference image and enter a Drive folder link.");
       return;
     }
-
+  
+    const folderId = extractFolderId(driveLink);
+    if (!folderId) {
+      alert("Invalid Google Drive link.");
+      return;
+    }
+  
     try {
       setScanning(true);
-      const response = await fetch("http://localhost:8000/scan", {
+      const response = await fetch(referenceImageURL);
+      const blob = await response.blob();
+      const filename = referenceImageURL.split("/").pop();
+  
+      const formData = new FormData();
+      formData.append("reference_image", blob, filename);
+      formData.append("folder_link", folderId);  // ✅ fixed
+  
+      const res = await fetch("http://localhost:8000/scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          referenceImage: referenceImageURL,
-          imageUrls: allImages.map((img) => ({
-            name: img.name,
-            url: img.url,
-          })),
-        }),
+        body: formData,
       });
-      const data = await response.json();
-      setMatchedImages(data.matched_images || []);
+  
+      const data = await res.json();
+      if (res.ok) {
+        setMatchedImages(data.matched_images || []);
+      } else {
+        console.error("Scan failed:", data);
+        alert(data.detail || "Scan failed");
+      }
     } catch (error) {
+      console.error("Scan error:", error);
       alert("Failed to scan images.");
     } finally {
       setScanning(false);
     }
   };
+  
 
   const imagesToDisplay = matchedImages.length > 0 ? matchedImages : allImages;
 
@@ -147,28 +164,20 @@ const Home = () => {
           {loading ? <CircularProgress size={24} color="inherit" /> : "Fetch Images"}
         </Button>
 
-        <Grid
-          container
-          spacing={1}
-          justifyContent="flex-start"
-          sx={{ mb: 2, overflowX: "auto", maxHeight: 160, flexWrap: "nowrap" }}
-        >
-          {imagesToDisplay.length > 0 &&
-            imagesToDisplay.map((image, index) => (
-              <Grid item key={index}>
-                <Paper sx={{ width: 80, height: 80, overflow: "hidden" }}>
-                  <img
-                    src={image.url}
-                    alt={`image-${index}`}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                    }}
-                  />
-                </Paper>
-              </Grid>
-            ))}
-        </Grid>
+        {imagesToDisplay.length > 0 && (
+          <ImageList sx={{ width: 500, height: 450, mb: 2 }} cols={3} rowHeight={164}>
+            {imagesToDisplay.map((item, index) => (
+              <ImageListItem key={index}>
+                <img
+                  src={`${item.url}?w=164&h=164&fit=crop&auto=format`}
+                  srcSet={`${item.url}?w=164&h=164&fit=crop&auto=format&dpr=2 2x`}
+                  alt={`image-${index}`}
+                  loading="lazy"
+                />
+              </ImageListItem>
+           ))}
+          </ImageList>
+        )}
 
         <Button variant="contained" color="primary" fullWidth component="label" sx={{ mb: 2 }}>
           Upload Reference Image
@@ -176,14 +185,39 @@ const Home = () => {
         </Button>
 
         {referenceImageURL && (
-          <Paper sx={{ width: 80, height: 80, overflow: "hidden", margin: "auto", mb: 2 }}>
+          <Paper
+            sx={{
+              width: 80,
+              height: 80,
+              overflow: "hidden",
+              margin: "auto",
+              mb: 2,
+              position: "relative",
+              }}
+          >     
             <img
               src={referenceImageURL}
               alt="reference"
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
+            <Button
+              size="small"
+              sx={{
+                minWidth: 0,
+                padding: 0,
+                position: "absolute",
+                top: 0,
+                right: 0,
+                zIndex: 1,
+                backgroundColor: "rgba(255,255,255,0.7)",
+              }}
+              onClick={() => setReferenceImageURL(null)}
+            >
+              <CloseIcon fontSize="small" />
+            </Button>
           </Paper>
         )}
+
 
         <Button
           variant="contained"
