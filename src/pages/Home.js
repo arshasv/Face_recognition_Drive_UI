@@ -3,14 +3,16 @@ import {
   Card,
   CardContent,
   Button,
-  Typography,
-  Paper,
   TextField,
   CircularProgress,
-  ImageList, ImageListItem
 } from "@mui/material";
-import CloseIcon from '@mui/icons-material/Close';
 
+import Header from "../components/Header";
+import ImageGrid from "../components/ImageGrid";
+import ReferenceImagePreview from "../components/ReferenceImagePreview";
+
+import { fetchImages, uploadReferenceImage, scanImages } from "../services/api";
+import { extractFolderId } from "../utils/helpers";
 
 const Home = () => {
   const [driveLink, setDriveLink] = useState("");
@@ -20,22 +22,17 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
 
-  const extractFolderId = (url) => {
-    const match = url.match(/[-\w]{25,}/);
-    return match ? match[0] : null;
-  };
-
   const handleFetchImages = async () => {
     const folderId = extractFolderId(driveLink);
     if (!folderId) {
       alert("Invalid Google Drive link");
       return;
     }
+
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/fetch-images?folder_id=${folderId}`);
-      const data = await response.json();
-      if (response.ok && data?.images) {
+      const data = await fetchImages(folderId);
+      if (data?.images?.length) {
         setAllImages(data.images);
         setMatchedImages([]);
       } else {
@@ -49,14 +46,9 @@ const Home = () => {
   };
 
   const handleReferenceImageUpload = async (event) => {
-    const formData = new FormData();
-    formData.append("file", event.target.files[0]);
-
     try {
-      const response = await fetch("http://localhost:8000/upload-reference-image", {
-        method: "POST",
-        body: formData,
-      });
+      const file = event.target.files[0];
+      const response = await uploadReferenceImage(file);
 
       const contentType = response.headers.get("content-type");
       if (!response.ok) {
@@ -72,58 +64,30 @@ const Home = () => {
           alert("Invalid response from server.");
         }
       } else {
-        const text = await response.text();
-        console.error("Unexpected response format:", text);
         alert("Server returned non-JSON response.");
       }
     } catch (error) {
-      console.error("Upload error:", error);
       alert("Error uploading reference image.");
     }
   };
 
   const handleScan = async () => {
-    if (!referenceImageURL || !driveLink) {
+    const folderId = extractFolderId(driveLink);
+    if (!referenceImageURL || !folderId) {
       alert("Please upload a reference image and enter a Drive folder link.");
       return;
     }
-  
-    const folderId = extractFolderId(driveLink);
-    if (!folderId) {
-      alert("Invalid Google Drive link.");
-      return;
-    }
-  
+
     try {
       setScanning(true);
-      const response = await fetch(referenceImageURL);
-      const blob = await response.blob();
-      const filename = referenceImageURL.split("/").pop();
-  
-      const formData = new FormData();
-      formData.append("reference_image", blob, filename);
-      formData.append("folder_link", folderId);  // ✅ fixed
-  
-      const res = await fetch("http://localhost:8000/scan", {
-        method: "POST",
-        body: formData,
-      });
-  
-      const data = await res.json();
-      if (res.ok) {
-        setMatchedImages(data.matched_images || []);
-      } else {
-        console.error("Scan failed:", data);
-        alert(data.detail || "Scan failed");
-      }
+      const data = await scanImages(referenceImageURL, folderId);
+      setMatchedImages(data.matched_images || []);
     } catch (error) {
-      console.error("Scan error:", error);
       alert("Failed to scan images.");
     } finally {
       setScanning(false);
     }
   };
-  
 
   const imagesToDisplay = matchedImages.length > 0 ? matchedImages : allImages;
 
@@ -140,9 +104,7 @@ const Home = () => {
       }}
     >
       <CardContent>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          PersonaScan
-        </Typography>
+        <Header />
 
         <TextField
           fullWidth
@@ -164,20 +126,7 @@ const Home = () => {
           {loading ? <CircularProgress size={24} color="inherit" /> : "Fetch Images"}
         </Button>
 
-        {imagesToDisplay.length > 0 && (
-          <ImageList sx={{ width: 500, height: 450, mb: 2 }} cols={3} rowHeight={164}>
-            {imagesToDisplay.map((item, index) => (
-              <ImageListItem key={index}>
-                <img
-                  src={`${item.url}?w=164&h=164&fit=crop&auto=format`}
-                  srcSet={`${item.url}?w=164&h=164&fit=crop&auto=format&dpr=2 2x`}
-                  alt={`image-${index}`}
-                  loading="lazy"
-                />
-              </ImageListItem>
-           ))}
-          </ImageList>
-        )}
+        {imagesToDisplay.length > 0 && <ImageGrid images={imagesToDisplay} />}
 
         <Button variant="contained" color="primary" fullWidth component="label" sx={{ mb: 2 }}>
           Upload Reference Image
@@ -185,39 +134,11 @@ const Home = () => {
         </Button>
 
         {referenceImageURL && (
-          <Paper
-            sx={{
-              width: 80,
-              height: 80,
-              overflow: "hidden",
-              margin: "auto",
-              mb: 2,
-              position: "relative",
-              }}
-          >     
-            <img
-              src={referenceImageURL}
-              alt="reference"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-            <Button
-              size="small"
-              sx={{
-                minWidth: 0,
-                padding: 0,
-                position: "absolute",
-                top: 0,
-                right: 0,
-                zIndex: 1,
-                backgroundColor: "rgba(255,255,255,0.7)",
-              }}
-              onClick={() => setReferenceImageURL(null)}
-            >
-              <CloseIcon fontSize="small" />
-            </Button>
-          </Paper>
+          <ReferenceImagePreview
+            imageUrl={referenceImageURL}
+            onRemove={() => setReferenceImageURL(null)}
+          />
         )}
-
 
         <Button
           variant="contained"

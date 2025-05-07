@@ -1,12 +1,9 @@
-import React from "react";
 import { Typography } from "@mui/material";
 
-const Header = () => {
-  return (
-    <Typography variant="h5" gutterBottom>
-      Persona Scan
-    </Typography>
-  );
-};
+const Header = () => (
+  <Typography variant="h4" fontWeight="bold" gutterBottom>
+    PersonaScan
+  </Typography>
+);
 
 export default Header;
